@@ -7,12 +7,14 @@ import * as sinonChai from 'sinon-chai';
 
 import { createAsyncIterator, isAsyncIterable } from 'iterall';
 import { PubSub } from '../pubsub';
-import { withFilter, FilterFn } from '../with-filter';
+import { withFilter, FilterFn, ResolverFn } from '../with-filter';
 import { ExecutionResult } from 'graphql';
 
 chai.use(chaiAsPromised);
 chai.use(sinonChai);
 const expect = chai.expect;
+
+type WithFilterFn = (asyncIteratorFn: ResolverFn | ResolverFnAsync, filterFn: FilterFn) => ResolverFn | ResolverFnAsync;
 
 import {
   parse,
@@ -22,12 +24,17 @@ import {
 } from 'graphql';
 
 import { subscribe } from 'graphql/subscription';
+import { withFilterAsync, ResolverFnAsync } from '../with-filter-async';
 
 const FIRST_EVENT = 'FIRST_EVENT';
 
 const defaultFilter = (payload) => true;
 
 function buildSchema(iterator, filterFn: FilterFn = defaultFilter) {
+  return buildSchemaIteratorFn(() => iterator, filterFn, withFilter);
+}
+
+function buildSchemaIteratorFn(iteratorFn, filterFn: FilterFn = defaultFilter, withFilterFn: WithFilterFn = withFilter) {
   return new GraphQLSchema({
     query: new GraphQLObjectType({
       name: 'Query',
@@ -45,7 +52,7 @@ function buildSchema(iterator, filterFn: FilterFn = defaultFilter) {
       fields: {
         testSubscription: {
           type: GraphQLString,
-          subscribe: withFilter(() => iterator, filterFn),
+          subscribe: withFilterFn(iteratorFn, filterFn),
           resolve: root => {
             return 'FIRST_EVENT';
           },
@@ -107,6 +114,33 @@ describe('GraphQL-JS asyncIterator', () => {
     return r;
   });
 
+  it('should allow async resolver', async () => {
+    const query = parse(`
+      subscription S1 {
+
+        testSubscription
+      }
+    `);
+    const pubsub = new PubSub();
+    const schema = buildSchemaIteratorFn(
+      async () => Promise.resolve(pubsub.asyncIterator(FIRST_EVENT)),
+      defaultFilter,
+      withFilterAsync);
+
+    const results = await subscribe(schema, query) as AsyncIterator<ExecutionResult>;
+    const payload1 = results.next();
+
+    expect(isAsyncIterable(results)).to.be.true;
+
+    const r = payload1.then(res => {
+      expect(res.value.data.testSubscription).to.equal('FIRST_EVENT');
+    });
+
+    pubsub.publish(FIRST_EVENT, {});
+
+    return r;
+  });
+
   it('should detect when the payload is done when filtering', (done) => {
     const query = parse(`
       subscription S1 {
@@ -133,7 +167,7 @@ describe('GraphQL-JS asyncIterator', () => {
 
     const schema = buildSchema(origIterator, filterFn);
 
-    Promise.resolve(subscribe(schema, query)).then((results: AsyncIterator<ExecutionResult>) => {
+    Promise.resolve(subscribe(schema, query)).then((results: AsyncIterableIterator<ExecutionResult>) => {
       expect(isAsyncIterable(results)).to.be.true;
 
       results.next();
