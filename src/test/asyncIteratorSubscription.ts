@@ -133,8 +133,10 @@ describe('GraphQL-JS asyncIterator', () => {
 
     const schema = buildSchema(origIterator, filterFn);
 
-    Promise.resolve(subscribe(schema, query)).then((results: AsyncIterator<ExecutionResult>) => {
+    Promise.resolve(subscribe(schema, query)).then((results: AsyncIterator<ExecutionResult> | ExecutionResult) => {
       expect(isAsyncIterable(results)).to.be.true;
+
+      results = results as AsyncIterator<ExecutionResult>; // above check will fail if not an async iterator
 
       results.next();
       results.return();
@@ -190,7 +192,7 @@ let testFiniteAsyncIterator: AsyncIterator<number> = createAsyncIterator([1, 2, 
 
 describe('withFilter', () => {
   it('works properly with finite asyncIterators', async () => {
-    let filteredAsyncIterator = withFilter(() => testFiniteAsyncIterator, isEven)();
+    let filteredAsyncIterator = await withFilter(() => testFiniteAsyncIterator, isEven)();
 
     for (let i = 1; i <= 4; i++) {
       let result = await filteredAsyncIterator.next();
