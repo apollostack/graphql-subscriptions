@@ -67,7 +67,7 @@ describe('GraphQL-JS asyncIterator', () => {
       }
     `);
     const pubsub = new PubSub();
-    const origIterator = pubsub.asyncIterator(FIRST_EVENT);
+    const origIterator = pubsub.asyncIterableIterator(FIRST_EVENT);
     const schema = buildSchema(origIterator);
 
 
@@ -93,7 +93,7 @@ describe('GraphQL-JS asyncIterator', () => {
       }
     `);
     const pubsub = new PubSub();
-    const origIterator = pubsub.asyncIterator(FIRST_EVENT);
+    const origIterator = pubsub.asyncIterableIterator(FIRST_EVENT);
     const schema = buildSchema(origIterator, () => Promise.resolve(true));
 
     const results = await subscribe(schema, query) as AsyncIterableIterator<ExecutionResult>;
@@ -118,7 +118,7 @@ describe('GraphQL-JS asyncIterator', () => {
     `);
 
     const pubsub = new PubSub();
-    const origIterator = pubsub.asyncIterator(FIRST_EVENT);
+    const origIterator = pubsub.asyncIterableIterator(FIRST_EVENT);
 
     let counter = 0;
 
@@ -158,7 +158,7 @@ describe('GraphQL-JS asyncIterator', () => {
     `);
 
     const pubsub = new PubSub();
-    const origIterator = pubsub.asyncIterator(FIRST_EVENT);
+    const origIterator = pubsub.asyncIterableIterator(FIRST_EVENT);
     const returnSpy = spy(origIterator, 'return');
     const schema = buildSchema(origIterator);
 
