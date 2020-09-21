@@ -1,10 +1,9 @@
-import { $$asyncIterator } from 'iterall';
 
 export type FilterFn = (rootValue?: any, args?: any, context?: any, info?: any) => boolean | Promise<boolean>;
 export type ResolverFn = (rootValue?: any, args?: any, context?: any, info?: any) => AsyncIterator<any>;
 
-interface IterallAsyncIterator<T> extends AsyncIterator<T> {
-  [$$asyncIterator](): IterallAsyncIterator<T>;
+interface IterallAsyncIterator<T> extends AsyncIterableIterator<T> {
+  [Symbol.asyncIterator](): IterallAsyncIterator<T>;
 }
 
 export const withFilter = (asyncIteratorFn: ResolverFn, filterFn: FilterFn): ResolverFn => {
@@ -42,7 +41,7 @@ export const withFilter = (asyncIteratorFn: ResolverFn, filterFn: FilterFn): Res
       throw(error) {
         return asyncIterator.throw(error);
       },
-      [$$asyncIterator]() {
+      [Symbol.asyncIterator]() {
         return this;
       },
     };

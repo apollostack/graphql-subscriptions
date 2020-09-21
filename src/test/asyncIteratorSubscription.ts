@@ -5,10 +5,13 @@ import * as chaiAsPromised from 'chai-as-promised';
 import { spy } from 'sinon';
 import * as sinonChai from 'sinon-chai';
 
-import { createAsyncIterator, isAsyncIterable } from 'iterall';
 import { PubSub } from '../pubsub';
 import { withFilter, FilterFn } from '../with-filter';
 import { ExecutionResult } from 'graphql';
+
+const isAsyncIterableIterator = (input: unknown): input is AsyncIterableIterator<unknown>  => {
+  return input != null && typeof input[Symbol.asyncIterator] === 'function';
+};
 
 chai.use(chaiAsPromised);
 chai.use(sinonChai);
@@ -68,10 +71,10 @@ describe('GraphQL-JS asyncIterator', () => {
     const schema = buildSchema(origIterator);
 
 
-    const results = await subscribe(schema, query) as AsyncIterator<ExecutionResult>;
+    const results = await subscribe(schema, query) as AsyncIterableIterator<ExecutionResult>;
     const payload1 = results.next();
 
-    expect(isAsyncIterable(results)).to.be.true;
+    expect(isAsyncIterableIterator(results)).to.be.true;
 
     const r = payload1.then(res => {
       expect(res.value.data.testSubscription).to.equal('FIRST_EVENT');
@@ -93,10 +96,10 @@ describe('GraphQL-JS asyncIterator', () => {
     const origIterator = pubsub.asyncIterator(FIRST_EVENT);
     const schema = buildSchema(origIterator, () => Promise.resolve(true));
 
-    const results = await subscribe(schema, query) as AsyncIterator<ExecutionResult>;
+    const results = await subscribe(schema, query) as AsyncIterableIterator<ExecutionResult>;
     const payload1 = results.next();
 
-    expect(isAsyncIterable(results)).to.be.true;
+    expect(isAsyncIterableIterator(results)).to.be.true;
 
     const r = payload1.then(res => {
       expect(res.value.data.testSubscription).to.equal('FIRST_EVENT');
@@ -134,7 +137,7 @@ describe('GraphQL-JS asyncIterator', () => {
     const schema = buildSchema(origIterator, filterFn);
 
     Promise.resolve(subscribe(schema, query)).then((results: AsyncIterableIterator<ExecutionResult>) => {
-      expect(isAsyncIterable(results)).to.be.true;
+      expect(isAsyncIterableIterator(results)).to.be.true;
 
       results.next();
       results.return();
@@ -179,14 +182,11 @@ function isEven(x: number) {
   return x % 2 === 0;
 }
 
-let testFiniteAsyncIterator: AsyncIterator<number> = createAsyncIterator([1, 2, 3, 4, 5, 6, 7, 8]);
-// Work around https://github.com/leebyron/iterall/issues/48
-(testFiniteAsyncIterator as any).throw = function (error) {
-  return Promise.reject(error);
-};
-(testFiniteAsyncIterator as any).return = function () {
-  return { value: undefined, done: true };
-};
+const testFiniteAsyncIterator: AsyncIterableIterator<number> = (async function * () {
+  for  (const value of [1, 2, 3, 4, 5, 6, 7, 8]) {
+    yield value;
+  }
+})();
 
 describe('withFilter', () => {
   it('works properly with finite asyncIterators', async () => {
